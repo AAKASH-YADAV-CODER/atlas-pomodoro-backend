@@ -29,12 +29,12 @@ const userSchema = new Schema(
       },
       validate: {
         validator: function (v) {
-          // At least 8 chars, 1 uppercase, 1 lowercase, 1 number
+          // At least 8 chars, 1 uppercase, 1 lowercase, 1 special character
           if (this.authMethod !== "email") return true;
-          return /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/.test(v);
+          return /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{8,})/.test(v);
         },
         message:
-          "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number",
+          "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one special character",
       },
     },
     phone: {
@@ -50,9 +50,9 @@ const userSchema = new Schema(
           // Ensure phone is validated only when authMethod is "email"
           if (this.authMethod !== "email") return true;
           // return v !== null && /^\+?[1-9]\d{1,14}$/.test(v);
-          return /^\+?[1-9]\d{1,14}$/.test(v);
+          return /^\d{10}$/.test(v);
         },
-        message: "Invalid phone number format",
+        message: "Invalid phone number format (10 digits required)",
       },
     },
     positivePoints: {

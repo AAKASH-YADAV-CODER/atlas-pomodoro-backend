@@ -11,6 +11,7 @@ const userAuthentication = {
     try {
       // Step 1: Extract user details from the request body
       const { name, email, password, confirmPassword, phone } = req.body;
+      console.log("Received signup request:", { name, email, phone });
 
       // Step 2: Validate required fields
       if (
@@ -47,6 +48,15 @@ const userAuthentication = {
         });
       }
 
+      // Check if phone number already exists
+      const existingPhone = await User.findOne({ phone });
+      if (existingPhone) {
+        return res.status(400).json({
+          success: false,
+          message: "Phone number is already registered",
+        });
+      }
+
       // Step 4: Hash the password
       const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -71,6 +81,17 @@ const userAuthentication = {
         token, // Send the token in the response
       });
     } catch (error) {
+      console.error("Detailed error during user registration:", error);
+      // Handle specific MongoDB errors
+      if (error.code === 11000) {
+        // Extract the field name from the error message
+        const field = Object.keys(error.keyPattern)[0];
+        return res.status(400).json({
+          success: false,
+          message: `This ${field} is already registered`,
+        });
+      }
+
       res.status(500).json({
         success: false,
         message: "Error during user registration",
