@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { verifyJWT } from "../../middleware/auth.middleware.js";
-import pomodoroController from "../../controllers/15TimeMethodControllers/pomodoro.controller.js";
+import { verifyJWT } from "../middlerwares/auth.middleware.js";
+import pomodoroController from "../controllers/pomodoro.controller.js";
 
 const router = Router();
 

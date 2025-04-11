@@ -3,7 +3,6 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { DailyTask } from "./models/daily.model.js";
 
 const app = express();
 app.use(cookieParser());
@@ -14,7 +13,7 @@ app.use(
       "www.sowalnk.com",
       "application-tier-ALB-52084640.ap-south-1.elb.amazonaws.com",
       "https://application-tier-ALB-52084640.ap-south-1.elb.amazonaws.com",
-      "http://localhost:5173",
+      "http://localhost:5174",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
@@ -32,7 +31,7 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: [
-      "http://localhost:5173",
+      "http://localhost:5174",
       "sowalnk.com",
       "www.sowalnk.com",
       "https://application-tier-ALB-52084640.ap-south-1.elb.amazonaws.com",
@@ -41,27 +40,16 @@ const io = new Server(server, {
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   },
 });
-
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kbs" }));
 app.use(express.static("public"));
 
 //import Routes
-import dailyTaskRouter from "./routers/daily.routes.js";
-import userAuth from "./routers/user.routes.js";
-import weeklyTaskRouter from "./routers/weekly.routes.js";
-import monthlyTaskRouter from "./routers/monthly.routes.js";
-import yearlyTaskRouter from "./routers/yearly.routes.js";
-import subscriptionRouter from "./routers/subscription.routes.js";
-import pomodoroRouter from "./routers/15TimesMethodRoutes/pomodoro.routes.js";
+import userAuth from "./routes/user.routes.js";
+import pomodoroRouter from "./routes/pomodoro.routes.js";
 
 //Route Declaration
-app.use("/api/v1/task", dailyTaskRouter);
 app.use("/api/v1/user", userAuth);
-app.use("/api/v1/weeklytask", weeklyTaskRouter);
-app.use("/api/v1/monthlytask", monthlyTaskRouter);
-app.use("/api/v1/yearlytask", yearlyTaskRouter);
-app.use("/api/v1/subscription", subscriptionRouter);
 app.use("/api/v1/pomodoro", pomodoroRouter);
 
 //Socket.io
@@ -84,55 +72,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-
-// Function to check for tasks ending soon
-async function checkEndingTasks() {
-  try {
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    // Iterate through all connected users
-    for (const [userId, socketId] of activeUsers.entries()) {
-      try {
-        // Fetch tasks only for this specific user
-        const tasks = await DailyTask.find({
-          user: userId, // Filter by the authenticated user's ID
-          isCompleted: false,
-          hasExceededTime: false,
-          isRead: false, // Only unread notifications
-          notified: false,
-        });
-
-        tasks.forEach((task) => {
-          if (!task.endTime) return;
-
-          const [hours, minutes] = task.endTime.split(":").map(Number);
-          const taskMinutes = hours * 60 + minutes;
-          const timeDiff = taskMinutes - currentMinutes;
-
-          if (timeDiff <= 5 && timeDiff >= 0) {
-            // Send notification to this specific user
-            io.to(socketId).emit("task-ending-soon", {
-              taskId: task._id,
-              title: task.taskName,
-              endTime: task.endTime,
-              minutesRemaining: timeDiff,
-            });
-            task.notified = true;
-            task.save();
-          }
-        });
-      } catch (error) {
-        console.error(`Error processing tasks for user ${userId}:`, error);
-      }
-    }
-  } catch (error) {
-    console.error("Error in checkEndingTasks:", error);
-  }
-}
-
-// Check every minute
-setInterval(checkEndingTasks, 30000);
 
 export { app, server };
 

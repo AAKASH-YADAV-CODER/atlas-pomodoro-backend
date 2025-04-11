@@ -1,4 +1,5 @@
-import { Pomodoro } from "../../models/15TimeMethods/pomodoro.model.js";
+import { Pomodoro } from "../models/pomodoro.model.js";
+import { PomodoroPoint } from "../models/pomodoroPoint.model.js";
 const pomodoroController = {
   // Create a new pomodoro task
   createPomodoro: async (req, res) => {
@@ -10,6 +11,18 @@ const pomodoroController = {
         return res
           .status(401)
           .json({ success: false, message: "User not authenticated" });
+      }
+
+      // Check if user has PomodoroPoint data, if not create it
+      let pomodoroUser = await PomodoroPoint.findOne({ userId });
+      if (!pomodoroUser) {
+        pomodoroUser = await PomodoroPoint.create({
+          userId,
+          points: 0,
+          level: 1,
+          streak: 0,
+          lastStreakUpdate: new Date(),
+        });
       }
 
       if (!text) {
@@ -61,6 +74,43 @@ const pomodoroController = {
       return res.status(500).json({
         success: false,
         message: error.message || "Failed to get pomodoro tasks",
+      });
+    }
+  },
+
+  // Get all pomodoro points tasks for a user
+  getAllPomodorosPoints: async (req, res) => {
+    try {
+      const userId = req.user?._id;
+
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ success: false, message: "User not authenticated" });
+      }
+
+      let pomodoroPoints = await PomodoroPoint.findOne({ userId });
+
+      // If no points data exists, create it
+      if (!pomodoroPoints) {
+        pomodoroPoints = await PomodoroPoint.create({
+          userId,
+          points: 0,
+          level: 1,
+          streak: 0,
+          lastStreakUpdate: new Date(),
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: pomodoroPoints,
+        message: "Pomodoro Points retrieved successfully",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to get pomodoro points",
       });
     }
   },
@@ -230,21 +280,79 @@ const pomodoroController = {
           .json({ success: false, message: "User not authenticated" });
       }
 
-      const pomodoro = await Pomodoro.findOneAndUpdate(
-        { _id: id, userId },
-        { completed: true, progress: 100 },
-        { new: true }
-      );
+      const pomodoro = await Pomodoro.findOne({ _id: id, userId });
+      let pomodoroPoints = await PomodoroPoint.findOne({ userId });
 
       if (!pomodoro) {
         return res
           .status(404)
           .json({ success: false, message: "Pomodoro task not found" });
       }
+      if (!pomodoroPoints) {
+        return res.status(404).json({
+          success: false,
+          message: "Pomodoro User for Point update not found",
+        });
+      }
+
+      // Update points and check for level up
+      const currentPoints = pomodoroPoints.points || 0;
+      const newPoints = currentPoints + 20; // Add 20 points for completing a task
+      const newLevel = Math.floor(newPoints / 100) + 1; // Level up every 100 points
+
+      // Check and update streak
+      const now = new Date();
+      const lastUpdate = pomodoroPoints.lastStreakUpdate || now;
+      const daysSinceLastUpdate = Math.floor(
+        (now - lastUpdate) / (1000 * 60 * 60 * 24)
+      );
+
+      let newStreak = pomodoroPoints.streak || 0;
+      let streakBonus = 0;
+
+      if (daysSinceLastUpdate === 1) {
+        // Increment streak if last update was yesterday
+        newStreak += 1;
+        // Check for 7-day streak bonus
+        if (newStreak % 7 === 0) {
+          streakBonus = 30; // Add 30 points for 7-day streak
+        }
+      } else if (daysSinceLastUpdate > 1) {
+        // Reset streak if more than one day has passed
+        newStreak = 1;
+      }
+
+      // Update the pomodoro task
+      const updatedPomodoro = await Pomodoro.findOneAndUpdate(
+        { _id: id, userId },
+        {
+          completed: true,
+          progress: 100,
+        },
+        { new: true }
+      );
+
+      // Update the pomodoro points
+      const updatedPomodoroPoint = await PomodoroPoint.findOneAndUpdate(
+        { userId },
+        {
+          points: newPoints + streakBonus,
+          level: newLevel,
+          streak: newStreak,
+          lastStreakUpdate: now,
+        },
+        { new: true }
+      );
+      await updatedPomodoroPoint.save();
 
       return res.status(200).json({
         success: true,
-        data: pomodoro,
+        data: {
+          pomodoro: updatedPomodoro,
+          points: updatedPomodoroPoint,
+          streakBonus,
+          levelUp: newLevel > pomodoroPoints.level,
+        },
         message: "Pomodoro marked as completed",
       });
     } catch (error) {

@@ -1,10 +1,8 @@
 import mongoose from "mongoose";
-import { DATABASE_NAME } from "../constant.js";
-
 const connectDB = async () => {
   try {
     const connectionPart = await mongoose.connect(
-      `${process.env.MONGODB_URL}/${DATABASE_NAME}`
+      `${process.env.MONGODB_URL}/pomodoro`
     );
     const result = await mongoose.connection.db
       .collection("users")

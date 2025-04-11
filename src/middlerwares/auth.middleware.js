@@ -1,8 +1,7 @@
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
 
-export const verifyJWT = asyncHandler(async (req, res, next) => {
+export const verifyJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(" ")[1];
@@ -45,4 +44,4 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
       .status(401)
       .json({ success: false, message: "Token not found!" });
   }
-});
+};
