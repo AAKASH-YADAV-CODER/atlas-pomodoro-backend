@@ -43,8 +43,7 @@ const userAuthentication = {
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message:
-            "User with this email already exists. Try Google login or forgot password.",
+          message: "User with this email already exists",
         });
       }
 
@@ -64,7 +63,6 @@ const userAuthentication = {
 
       // Step 6: Remove the password from the response
       const createdUser = await User.findById(user._id).select("-password");
-      await subscription.save();
       // Return token in the response body
       res.status(201).json({
         success: true,
@@ -118,11 +116,6 @@ const userAuthentication = {
       // Remove password from response
       const loggedInUser = await User.findById(user._id).select("-password");
       user.lastLogin = new Date();
-      if (!user.emailSended) {
-        await sendWelcomeEmail(user.email, user.name);
-        user.emailSended = true;
-      }
-      await user.save();
 
       // Return token in the response body
       res.status(200).json({
@@ -151,6 +144,28 @@ const userAuthentication = {
       res.status(500).json({
         success: false,
         message: "Error during user logout",
+        error: error.message,
+      });
+    }
+  },
+  //get all users
+  getAllUsers: async (req, res) => {
+    try {
+      const users = await User.find()
+        .select("-password")
+        .sort({ totalPoints: -1 })
+        .lean();
+
+      // Add position based on sorted order
+      const usersWithPosition = users.map((user, index) => ({
+        ...user,
+        position: index + 1,
+      }));
+
+      res.status(200).json({ data: usersWithPosition });
+    } catch (error) {
+      res.status(500).json({
+        message: "Error From Fetch All Users",
         error: error.message,
       });
     }

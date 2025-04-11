@@ -13,6 +13,9 @@ router.post("/", pomodoroController.createPomodoro);
 // Get all pomodoro tasks for the authenticated user
 router.get("/", pomodoroController.getAllPomodoros);
 
+// Get all pomodoro points from user
+router.get("/points", pomodoroController.getAllPomodorosPoints);
+
 // Get a specific pomodoro task by ID
 router.get("/:id", pomodoroController.getPomodoroById);
 
